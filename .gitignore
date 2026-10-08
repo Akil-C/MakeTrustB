@@ -1,0 +1,23 @@
+# Maven target directory
+target/
+*.jar
+*.war
+*.ear
+*.rar
+
+# Logs
+*.log
+logs/
+
+# IDE files
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+.vscode/
+
+# Scratch & Environment
+scratch/
+.env
+*.env.local
