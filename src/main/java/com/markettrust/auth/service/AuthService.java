@@ -5,6 +5,10 @@ import com.markettrust.exception.BadRequestException;
 import com.markettrust.exception.ResourceNotFoundException;
 import com.markettrust.exception.UnauthorizedException;
 import com.markettrust.security.JwtTokenProvider;
+import com.markettrust.seller.entity.KycStatus;
+import com.markettrust.seller.entity.SellerLevel;
+import com.markettrust.seller.entity.SellerProfile;
+import com.markettrust.seller.repository.SellerProfileRepository;
 import com.markettrust.user.entity.*;
 import com.markettrust.user.repository.RefreshTokenRepository;
 import com.markettrust.user.repository.RoleRepository;
@@ -46,6 +50,7 @@ public class AuthService {
     private final PasswordEncoder        passwordEncoder;
     private final JwtTokenProvider       jwtTokenProvider;
     private final WalletService          walletService;
+    private final SellerProfileRepository sellerProfileRepository;
     private final RestTemplate           restTemplate;
 
     @Value("${app.captcha.enabled:false}")
@@ -70,12 +75,14 @@ public class AuthService {
         // Validate captcha
         validateCaptcha(request.getCaptchaToken());
 
+        String email = request.getEmail().toLowerCase().trim();
+
         // Guard duplicate email / phone
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new BadRequestException("Email is already registered: " + request.getEmail());
+        if (userRepository.existsByEmail(email)) {
+            throw new BadRequestException("Email is already registered: " + email);
         }
-        if (request.getPhone() != null && userRepository.existsByPhone(request.getPhone())) {
-            throw new BadRequestException("Phone number is already registered: " + request.getPhone());
+        if (request.getPhone() != null && !request.getPhone().isBlank() && userRepository.existsByPhone(request.getPhone().trim())) {
+            throw new BadRequestException("Phone number is already registered: " + request.getPhone().trim());
         }
 
         RoleName roleName = (request.getRole() != null) ? request.getRole() : RoleName.BUYER;
@@ -90,9 +97,9 @@ public class AuthService {
 
         // Build and persist user
         User user = User.builder()
-                .name(request.getName())
-                .email(request.getEmail().toLowerCase())
-                .phone(request.getPhone())
+                .name(request.getName().trim())
+                .email(email)
+                .phone(request.getPhone() != null && !request.getPhone().isBlank() ? request.getPhone().trim() : null)
                 .password(passwordEncoder.encode(request.getPassword()))
                 .status(UserStatus.ACTIVE)
                 .emailVerified(false)
@@ -105,9 +112,9 @@ public class AuthService {
 
         // Post-registration setup
         createWalletForUser(user);
-        if (roleName == RoleName.BUYER) {
+        if (roleName == RoleName.BUYER || roleName == RoleName.ROLE_BUYER) {
             createBuyerProfile(user);
-        } else if (roleName == RoleName.SELLER) {
+        } else if (roleName == RoleName.SELLER || roleName == RoleName.ROLE_SELLER) {
             createSellerProfilePlaceholder(user);
         }
 
@@ -122,15 +129,17 @@ public class AuthService {
     public AuthResponse login(LoginRequest request) {
         validateCaptcha(request.getCaptchaToken());
 
+        String email = request.getEmail().toLowerCase().trim();
+
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
-                        request.getEmail().toLowerCase(),
+                        email,
                         request.getPassword()
                 )
         );
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
-        User user = userRepository.findByEmail(request.getEmail().toLowerCase())
+        User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         if (user.getStatus() == UserStatus.BANNED) {
@@ -257,8 +266,29 @@ public class AuthService {
     }
 
     private void createSellerProfilePlaceholder(User user) {
-        // TODO: delegate to SellerProfileService when available
-        log.debug("Seller profile placeholder created for userId={}", user.getId());
+        if (sellerProfileRepository.findByUserId(user.getId()).isEmpty()) {
+            SellerProfile sp = new SellerProfile();
+            sp.setUserId(user.getId());
+            sp.setUser(user);
+            sp.setDisplayName(user.getName() != null && !user.getName().isBlank() ? user.getName() : "Seller " + user.getId());
+            sp.setBio("Verified Merchant on Nexora Marketplace.");
+            sp.setCity("Bengaluru");
+            sp.setState("Karnataka");
+            sp.setCountry("India");
+            sp.setKycStatus(KycStatus.PENDING);
+            sp.setIsVerified(false);
+            sp.setSellerLevel(SellerLevel.NEW);
+            sp.setTrustScore(15.0);
+            sp.setAverageRating(0.0);
+            sp.setReviewCount(0);
+            sp.setCompletedOrders(0);
+            sp.setTotalSales(BigDecimal.ZERO);
+            sp.setResponseRate(100.0);
+            sp.setCancellationRate(0.0);
+            sp.setSellerSince(java.time.LocalDateTime.now());
+            sellerProfileRepository.save(sp);
+            log.info("Seller profile provisioned for userId={}", user.getId());
+        }
     }
 
     private AuthResponse buildAuthResponse(User user) {

@@ -25,7 +25,7 @@ public class RegisterRequest {
     private String email;
 
     @Pattern(
-        regexp = "^[0-9]{10}$",
+        regexp = "^$|^[0-9]{10}$",
         message = "Phone number must be exactly 10 digits"
     )
     private String phone;

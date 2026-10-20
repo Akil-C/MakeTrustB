@@ -58,7 +58,13 @@ public class WalletService implements WalletServiceInterface {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
 
         Wallet wallet = new Wallet();
+        wallet.setUserId(userId);
         wallet.setUser(user);
+        wallet.setAvailableCredits(BigDecimal.valueOf(1000)); // Welcome credits for newly registered users
+        wallet.setHeldCredits(BigDecimal.ZERO);
+        wallet.setTotalEarned(BigDecimal.valueOf(1000));
+        wallet.setTotalSpent(BigDecimal.ZERO);
+        wallet.setIsFrozen(false);
         walletRepository.save(wallet);
         log.info("Wallet created for userId={}", userId);
     }
