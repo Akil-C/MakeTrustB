@@ -135,4 +135,18 @@ public class AdminService {
         userRepository.save(user);
         log.info("Admin [{}] unbanned user [{}]", adminId, userId);
     }
+
+    public Page<KycStatusDto> getPendingKyc(Pageable pageable) {
+        return sellerKycRepository.findByStatus(KycStatus.PENDING, pageable).map(k -> {
+            KycStatusDto dto = new KycStatusDto();
+            dto.setId(k.getId());
+            dto.setSellerId(k.getSellerId());
+            dto.setIdType(k.getIdType());
+            dto.setStatus(k.getStatus());
+            dto.setRejectionReason(k.getRejectionReason());
+            dto.setSubmittedAt(k.getSubmittedAt());
+            dto.setReviewedAt(k.getReviewedAt());
+            return dto;
+        });
+    }
 }

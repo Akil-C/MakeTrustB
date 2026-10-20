@@ -78,9 +78,11 @@ public class AuthService {
             throw new BadRequestException("Phone number is already registered: " + request.getPhone());
         }
 
-        // Determine role (default = BUYER)
         RoleName roleName = (request.getRole() != null) ? request.getRole() : RoleName.BUYER;
+        String rawRoleStr = roleName.name().replace("ROLE_", "");
         Role role = roleRepository.findByName(roleName)
+                .or(() -> roleRepository.findByName(RoleName.valueOf("ROLE_" + rawRoleStr)))
+                .or(() -> roleRepository.findByName(RoleName.valueOf(rawRoleStr)))
                 .orElseThrow(() -> new ResourceNotFoundException("Role not found: " + roleName));
 
         Set<Role> roles = new HashSet<>();

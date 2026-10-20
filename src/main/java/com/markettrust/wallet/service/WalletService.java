@@ -259,7 +259,7 @@ public class WalletService implements WalletServiceInterface {
         }
 
         // Platform fee
-        deductPlatformFee(platformFee, orderId);
+        deductPlatformFee(platformFee, orderId, buyerWallet.getId());
 
         // Mark hold released
         hold.setStatus(HoldStatus.RELEASED);
@@ -307,13 +307,27 @@ public class WalletService implements WalletServiceInterface {
     @Override
     @Transactional
     public void deductPlatformFee(BigDecimal amount, Long orderId) {
+        deductPlatformFee(amount, orderId, null);
+    }
+
+    public void deductPlatformFee(BigDecimal amount, Long orderId, Long walletId) {
         String idem = "PLATFORM-FEE-" + orderId;
         if (transactionRepository.findByIdempotencyKey(idem).isPresent()) return;
 
-        // Platform fee is already deducted from buyer's hold; we just record it
-        // in the platform-fee tracking wallet (walletId = 0 sentinel).
+        Long targetWalletId = walletId;
+        if (targetWalletId == null || targetWalletId == 0L) {
+            targetWalletId = walletRepository.findAll().stream()
+                    .map(Wallet::getId)
+                    .findFirst()
+                    .orElse(null);
+        }
+        if (targetWalletId == null) {
+            log.warn("No wallet found to record platform fee for order #{}", orderId);
+            return;
+        }
+
         WalletTransaction tx = new WalletTransaction();
-        tx.setWalletId(0L); // platform ledger sentinel
+        tx.setWalletId(targetWalletId);
         tx.setType(TransactionType.PLATFORM_FEE);
         tx.setAmount(amount);
         tx.setBalanceAfter(BigDecimal.ZERO);

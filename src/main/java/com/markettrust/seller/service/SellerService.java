@@ -139,6 +139,10 @@ public class SellerService {
         sellerProfileRepository.save(profile);
     }
 
+    public Page<SellerProfileDto> getAllSellers(Pageable pageable) {
+        return sellerProfileRepository.findAll(pageable).map(this::toDto);
+    }
+
     public SellerProfileDto toDto(SellerProfile p) {
         SellerProfileDto dto = new SellerProfileDto();
         dto.setUserId(p.getUserId());

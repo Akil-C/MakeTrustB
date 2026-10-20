@@ -27,6 +27,8 @@ public class UserDto {
     private boolean phoneVerified;
     private String profileImageUrl;
 
+    private String role;
+
     /** Set of role names, e.g. ["BUYER", "SELLER"]. */
     private Set<String> roles;
 

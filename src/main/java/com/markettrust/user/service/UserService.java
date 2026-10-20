@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -191,6 +192,17 @@ public class UserService {
     // ---------------------------------------------------------------------------
 
     private UserDto mapToDto(User user) {
+        Set<String> roleNames = user.getRoles().stream()
+                .map(r -> r.getName().name().replace("ROLE_", ""))
+                .collect(Collectors.toSet());
+
+        String primaryRole = "BUYER";
+        if (roleNames.contains("ADMIN")) {
+            primaryRole = "ADMIN";
+        } else if (roleNames.contains("SELLER")) {
+            primaryRole = "SELLER";
+        }
+
         return UserDto.builder()
                 .id(user.getId())
                 .name(user.getName())
@@ -200,6 +212,7 @@ public class UserService {
                 .emailVerified(user.isEmailVerified())
                 .phoneVerified(user.isPhoneVerified())
                 .profileImageUrl(user.getProfileImageUrl())
+                .role(primaryRole)
                 .roles(user.getRoles().stream()
                         .map(r -> r.getName().name())
                         .collect(Collectors.toSet()))

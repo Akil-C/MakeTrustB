@@ -409,6 +409,15 @@ public class ProductService {
         return dto;
     }
 
+    public Page<ProductSummaryDto> getAdminProducts(String keyword, Pageable pageable) {
+        if (keyword != null && !keyword.isBlank()) {
+            return productRepository.findByTitleContainingIgnoreCase(keyword, pageable)
+                    .map(p -> toProductSummaryDto(p, null));
+        }
+        return productRepository.findAll(pageable)
+                .map(p -> toProductSummaryDto(p, null));
+    }
+
     private ProductImageDto toImageDto(ProductImage image) {
         ProductImageDto dto = new ProductImageDto();
         dto.setId(image.getId());

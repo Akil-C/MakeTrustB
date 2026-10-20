@@ -26,7 +26,7 @@ public class WalletController {
     // -------------------------------------------------------------------------
 
     /** GET /api/wallet — authenticated user views own wallet */
-    @GetMapping("/api/wallet")
+    @GetMapping({"/api/wallet", "/api/wallet/balance"})
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<WalletDto> getMyWallet() {
         Long userId = SecurityUtils.getCurrentUserId();
@@ -47,8 +47,8 @@ public class WalletController {
     // -------------------------------------------------------------------------
 
     /** POST /api/admin/wallet/grant — admin grants credits to a user */
-    @PostMapping("/api/admin/wallet/grant")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping({"/api/admin/wallet/grant", "/api/admin/wallet/topup"})
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'ROLE_ADMIN')")
     public ResponseEntity<WalletDto> grantCredits(
             @Valid @RequestBody AdminGrantCreditsRequest request) {
         Long adminId = SecurityUtils.getCurrentUserId();
@@ -58,8 +58,8 @@ public class WalletController {
     }
 
     /** POST /api/admin/wallet/adjust — admin adjusts credits (positive or negative) */
-    @PostMapping("/api/admin/wallet/adjust")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping({"/api/admin/wallet/adjust", "/api/admin/wallet/deduct"})
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'ROLE_ADMIN')")
     public ResponseEntity<WalletDto> adjustCredits(
             @Valid @RequestBody AdminAdjustCreditsRequest request) {
         Long adminId = SecurityUtils.getCurrentUserId();

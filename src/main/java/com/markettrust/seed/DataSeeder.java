@@ -59,11 +59,15 @@ public class DataSeeder implements CommandLineRunner {
 
     private void seedRoles() {
         for (RoleName roleName : RoleName.values()) {
-            if (roleRepository.findByName(roleName).isEmpty()) {
-                Role role = new Role();
-                role.setName(roleName);
-                roleRepository.save(role);
-                log.info("Seeded role: {}", roleName);
+            try {
+                if (roleRepository.findByName(roleName).isEmpty()) {
+                    Role role = new Role();
+                    role.setName(roleName);
+                    roleRepository.save(role);
+                    log.info("Seeded role: {}", roleName);
+                }
+            } catch (Exception e) {
+                log.debug("Skipping role seed for {}: {}", roleName, e.getMessage());
             }
         }
     }
@@ -95,135 +99,154 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private void seedUsersAndListings() {
-        if (userRepository.existsByEmail("admin@markettrust.com")) {
-            return;
-        }
-
-        Role buyerRole = roleRepository.findByName(RoleName.BUYER).orElseThrow();
-        Role sellerRole = roleRepository.findByName(RoleName.SELLER).orElseThrow();
-        Role adminRole = roleRepository.findByName(RoleName.ADMIN).orElseThrow();
+        Role buyerRole = roleRepository.findByName(RoleName.ROLE_BUYER)
+                .or(() -> roleRepository.findByName(RoleName.BUYER))
+                .orElseGet(() -> roleRepository.save(new Role(RoleName.ROLE_BUYER)));
+        Role sellerRole = roleRepository.findByName(RoleName.ROLE_SELLER)
+                .or(() -> roleRepository.findByName(RoleName.SELLER))
+                .orElseGet(() -> roleRepository.save(new Role(RoleName.ROLE_SELLER)));
+        Role adminRole = roleRepository.findByName(RoleName.ROLE_ADMIN)
+                .or(() -> roleRepository.findByName(RoleName.ADMIN))
+                .orElseGet(() -> roleRepository.save(new Role(RoleName.ROLE_ADMIN)));
 
         // 1. Admin User
-        User admin = User.builder()
-                .name("System Administrator")
-                .email("admin@markettrust.com")
-                .phone("9999999999")
-                .password(passwordEncoder.encode("Admin@123!"))
-                .status(UserStatus.ACTIVE)
-                .emailVerified(true)
-                .phoneVerified(true)
-                .roles(Set.of(adminRole, sellerRole, buyerRole))
-                .build();
-        admin = userRepository.save(admin);
-        createWallet(admin.getId(), 1000000L);
+        User admin = userRepository.findByEmail("admin@markettrust.com").orElse(null);
+        if (admin == null) {
+            admin = User.builder()
+                    .name("System Administrator")
+                    .email("admin@markettrust.com")
+                    .phone("9999999999")
+                    .password(passwordEncoder.encode("Admin@123!"))
+                    .status(UserStatus.ACTIVE)
+                    .emailVerified(true)
+                    .phoneVerified(true)
+                    .roles(Set.of(adminRole, sellerRole, buyerRole))
+                    .build();
+            admin = userRepository.save(admin);
+            createWallet(admin.getId(), 1000000L);
+            log.info("Seeded Admin user");
+        }
 
         // 2. Seller User
-        User seller = User.builder()
-                .name("TechHub Electronics")
-                .email("seller1@demo.com")
-                .phone("9876543210")
-                .password(passwordEncoder.encode("Seller@123!"))
-                .status(UserStatus.ACTIVE)
-                .emailVerified(true)
-                .phoneVerified(true)
-                .roles(Set.of(sellerRole, buyerRole))
-                .build();
-        seller = userRepository.save(seller);
-        createWallet(seller.getId(), 15000L);
+        User seller = userRepository.findByEmail("seller1@demo.com").orElse(null);
+        if (seller == null) {
+            seller = User.builder()
+                    .name("TechHub Electronics")
+                    .email("seller1@demo.com")
+                    .phone("9876543210")
+                    .password(passwordEncoder.encode("Seller@123!"))
+                    .status(UserStatus.ACTIVE)
+                    .emailVerified(true)
+                    .phoneVerified(true)
+                    .roles(Set.of(sellerRole, buyerRole))
+                    .build();
+            seller = userRepository.save(seller);
+            createWallet(seller.getId(), 15000L);
 
-        // Create Seller Profile
-        SellerProfile sp = new SellerProfile();
-        sp.setUserId(seller.getId());
-        sp.setDisplayName("TechHub Official");
-        sp.setBio("Verified premium seller for refurbished tech and gadgets in Bengaluru.");
-        sp.setCity("Bengaluru");
-        sp.setState("Karnataka");
-        sp.setLatitude(12.9716);
-        sp.setLongitude(77.5946);
-        sp.setKycStatus(KycStatus.VERIFIED);
-        sp.setIsVerified(true);
-        sp.setTrustScore(92.5);
-        sp.setSellerLevel(SellerLevel.GOLD);
-        sp.setAverageRating(4.9);
-        sp.setReviewCount(48);
-        sp.setCompletedOrders(124);
-        sp.setTotalSales(BigDecimal.valueOf(350000L));
-        sp.setResponseRate(98.0);
-        sp.setCancellationRate(1.2);
-        sellerProfileRepository.save(sp);
+            SellerProfile sp = new SellerProfile();
+            sp.setUserId(seller.getId());
+            sp.setDisplayName("TechHub Official");
+            sp.setBio("Verified premium seller for refurbished tech and gadgets in Bengaluru.");
+            sp.setCity("Bengaluru");
+            sp.setState("Karnataka");
+            sp.setLatitude(12.9716);
+            sp.setLongitude(77.5946);
+            sp.setKycStatus(KycStatus.VERIFIED);
+            sp.setIsVerified(true);
+            sp.setTrustScore(92.5);
+            sp.setSellerLevel(SellerLevel.GOLD);
+            sp.setAverageRating(4.9);
+            sp.setReviewCount(48);
+            sp.setCompletedOrders(124);
+            sp.setTotalSales(BigDecimal.valueOf(350000L));
+            sp.setResponseRate(98.0);
+            sp.setCancellationRate(1.2);
+            sp = sellerProfileRepository.save(sp);
 
-        SellerKyc kyc = new SellerKyc();
-        kyc.setSellerId(seller.getId());
-        kyc.setIdType(KycIdType.AADHAAR);
-        kyc.setIdNumber("1234-5678-9012");
-        kyc.setCity("Bengaluru");
-        kyc.setState("Karnataka");
-        kyc.setPincode("560001");
-        kyc.setDeclarationAccepted(true);
-        kyc.setStatus(KycStatus.VERIFIED);
-        kyc.setSubmittedAt(LocalDateTime.now().minusDays(30));
-        kyc.setReviewedAt(LocalDateTime.now().minusDays(29));
-        sellerKycRepository.save(kyc);
+            try {
+                SellerKyc kyc = new SellerKyc();
+                kyc.setSellerId(sp.getId());
+                kyc.setIdType(KycIdType.AADHAAR);
+                kyc.setIdNumber("1234-5678-9012");
+                kyc.setCity("Bengaluru");
+                kyc.setState("Karnataka");
+                kyc.setPincode("560001");
+                kyc.setDeclarationAccepted(true);
+                kyc.setStatus(KycStatus.VERIFIED);
+                kyc.setSubmittedAt(LocalDateTime.now().minusDays(30));
+                kyc.setReviewedAt(LocalDateTime.now().minusDays(29));
+                sellerKycRepository.save(kyc);
+            } catch (Exception e) {
+                log.warn("Could not save demo KYC: {}", e.getMessage());
+            }
+            log.info("Seeded Seller user");
+        }
 
         // 3. Buyer User
-        User buyer = User.builder()
-                .name("Alex Johnson")
-                .email("buyer1@demo.com")
-                .phone("9123456789")
-                .password(passwordEncoder.encode("Buyer@123!"))
-                .status(UserStatus.ACTIVE)
-                .emailVerified(true)
-                .phoneVerified(true)
-                .roles(Set.of(buyerRole))
-                .build();
-        buyer = userRepository.save(buyer);
-        createWallet(buyer.getId(), 25000L);
+        User buyer = userRepository.findByEmail("buyer1@demo.com").orElse(null);
+        if (buyer == null) {
+            buyer = User.builder()
+                    .name("Alex Johnson")
+                    .email("buyer1@demo.com")
+                    .phone("9123456789")
+                    .password(passwordEncoder.encode("Buyer@123!"))
+                    .status(UserStatus.ACTIVE)
+                    .emailVerified(true)
+                    .phoneVerified(true)
+                    .roles(Set.of(buyerRole))
+                    .build();
+            buyer = userRepository.save(buyer);
+            createWallet(buyer.getId(), 25000L);
+            log.info("Seeded Buyer user");
+        }
 
         // 4. Sample Products
-        Category electronics = categoryRepository.findByName("Electronics").orElse(null);
-        Category vehicles = categoryRepository.findByName("Vehicles").orElse(null);
-        Category furniture = categoryRepository.findByName("Furniture").orElse(null);
-        Category fashion = categoryRepository.findByName("Fashion").orElse(null);
+        if (productRepository.count() == 0 && seller != null) {
+            Category electronics = categoryRepository.findByName("Electronics").orElse(null);
+            Category vehicles = categoryRepository.findByName("Vehicles").orElse(null);
+            Category furniture = categoryRepository.findByName("Furniture").orElse(null);
+            Category fashion = categoryRepository.findByName("Fashion").orElse(null);
 
-        if (electronics != null) {
-            createProduct(seller.getId(), electronics.getId(), "MacBook Pro 16-inch M2 Max (32GB RAM, 1TB SSD)",
-                    "Mint condition MacBook Pro 16-inch with M2 Max chip. Battery capacity 96%. Includes original MagSafe charger and leather sleeve.",
-                    145000L, ProductCondition.LIKE_NEW, "Apple", "Bengaluru", "Karnataka", 12.9716, 77.5946,
-                    "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=800&q=80");
+            if (electronics != null) {
+                createProduct(seller.getId(), electronics.getId(), "MacBook Pro 16-inch M2 Max (32GB RAM, 1TB SSD)",
+                        "Mint condition MacBook Pro 16-inch with M2 Max chip. Battery capacity 96%. Includes original MagSafe charger and leather sleeve.",
+                        145000L, ProductCondition.LIKE_NEW, "Apple", "Bengaluru", "Karnataka", 12.9716, 77.5946,
+                        "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=800&q=80");
 
-            createProduct(seller.getId(), electronics.getId(), "Sony WH-1000XM5 Wireless Noise Canceling Headphones",
-                    "Brand new unopened Sony WH-1000XM5 ANC headphones in Silver. Full international warranty.",
-                    22000L, ProductCondition.NEW, "Sony", "Bengaluru", "Karnataka", 12.9352, 77.6245,
-                    "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80");
+                createProduct(seller.getId(), electronics.getId(), "Sony WH-1000XM5 Wireless Noise Canceling Headphones",
+                        "Brand new unopened Sony WH-1000XM5 ANC headphones in Silver. Full international warranty.",
+                        22000L, ProductCondition.NEW, "Sony", "Bengaluru", "Karnataka", 12.9352, 77.6245,
+                        "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80");
 
-            createProduct(seller.getId(), electronics.getId(), "iPhone 14 Pro 256GB Deep Purple",
-                    "Gently used for 6 months. Comes with box, original cable, and Spigen Armor case. Screen protector applied from day one.",
-                    72000L, ProductCondition.GOOD, "Apple", "Bengaluru", "Karnataka", 12.9716, 77.5946,
-                    "https://images.unsplash.com/photo-1695048133142-1a20484d2569?auto=format&fit=crop&w=800&q=80");
+                createProduct(seller.getId(), electronics.getId(), "iPhone 14 Pro 256GB Deep Purple",
+                        "Gently used for 6 months. Comes with box, original cable, and Spigen Armor case. Screen protector applied from day one.",
+                        72000L, ProductCondition.GOOD, "Apple", "Bengaluru", "Karnataka", 12.9716, 77.5946,
+                        "https://images.unsplash.com/photo-1695048133142-1a20484d2569?auto=format&fit=crop&w=800&q=80");
+            }
+
+            if (vehicles != null) {
+                createProduct(seller.getId(), vehicles.getId(), "Trek Marlin 7 Mountain Bike (Medium Frame)",
+                        "Upgraded Trek Marlin 7 Hardtail MTB with Shimano Deore 1x10 drivetrain and RockShox suspension fork. Ready to ride.",
+                        38000L, ProductCondition.GOOD, "Trek", "Bengaluru", "Karnataka", 12.9250, 77.5890,
+                        "https://images.unsplash.com/photo-1485965120184-e220f721d03e?auto=format&fit=crop&w=800&q=80");
+            }
+
+            if (furniture != null) {
+                createProduct(seller.getId(), furniture.getId(), "Herman Miller Aeron Ergonomic Office Chair (Size B)",
+                        "Authentic Herman Miller Aeron chair with fully adjustable posturefit SL support. Fully functional, supreme comfort.",
+                        48000L, ProductCondition.LIKE_NEW, "Herman Miller", "Bengaluru", "Karnataka", 12.9716, 77.5946,
+                        "https://images.unsplash.com/photo-1580481072645-022f9a6d1270?auto=format&fit=crop&w=800&q=80");
+            }
+
+            if (fashion != null) {
+                createProduct(seller.getId(), fashion.getId(), "Seiko Prospex Automatic Diver Watch (SRPD25)",
+                        "Seiko Prospex 'Monster' Blue Dial Automatic Diver watch with stainless steel bracelet and additional rubber strap.",
+                        19500L, ProductCondition.GOOD, "Seiko", "Bengaluru", "Karnataka", 12.9716, 77.5946,
+                        "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80");
+            }
+
+            log.info("Successfully seeded demo users, seller profile, and products.");
         }
-
-        if (vehicles != null) {
-            createProduct(seller.getId(), vehicles.getId(), "Trek Marlin 7 Mountain Bike (Medium Frame)",
-                    "Upgraded Trek Marlin 7 Hardtail MTB with Shimano Deore 1x10 drivetrain and RockShox suspension fork. Ready to ride.",
-                    38000L, ProductCondition.GOOD, "Trek", "Bengaluru", "Karnataka", 12.9250, 77.5890,
-                    "https://images.unsplash.com/photo-1485965120184-e220f721d03e?auto=format&fit=crop&w=800&q=80");
-        }
-
-        if (furniture != null) {
-            createProduct(seller.getId(), furniture.getId(), "Herman Miller Aeron Ergonomic Office Chair (Size B)",
-                    "Authentic Herman Miller Aeron chair with fully adjustable posturefit SL support. Fully functional, supreme comfort.",
-                    48000L, ProductCondition.LIKE_NEW, "Herman Miller", "Bengaluru", "Karnataka", 12.9716, 77.5946,
-                    "https://images.unsplash.com/photo-1580481072645-022f9a6d1270?auto=format&fit=crop&w=800&q=80");
-        }
-
-        if (fashion != null) {
-            createProduct(seller.getId(), fashion.getId(), "Seiko Prospex Automatic Diver Watch (SRPD25)",
-                    "Seiko Prospex 'Monster' Blue Dial Automatic Diver watch with stainless steel bracelet and additional rubber strap.",
-                    19500L, ProductCondition.GOOD, "Seiko", "Bengaluru", "Karnataka", 12.9716, 77.5946,
-                    "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80");
-        }
-
-        log.info("Successfully seeded demo users, seller profile, and products.");
     }
 
     private void createWallet(Long userId, Long initialBalance) {

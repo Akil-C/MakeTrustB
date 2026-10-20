@@ -11,4 +11,9 @@ public record WalletDto(
         BigDecimal totalSpent,
         Boolean isFrozen,
         LocalDateTime lastUpdated
-) {}
+) {
+    @com.fasterxml.jackson.annotation.JsonProperty("balance")
+    public BigDecimal balance() {
+        return availableCredits;
+    }
+}

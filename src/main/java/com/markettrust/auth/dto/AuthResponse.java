@@ -1,5 +1,6 @@
 package com.markettrust.auth.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -27,6 +28,11 @@ public class AuthResponse {
     private Long expiresIn;
 
     private UserInfo userInfo;
+
+    @JsonProperty("user")
+    public UserInfo getUser() {
+        return userInfo;
+    }
 
     // ---------------------------------------------------------------------------
     // Nested DTO

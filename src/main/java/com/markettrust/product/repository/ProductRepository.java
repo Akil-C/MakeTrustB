@@ -61,6 +61,8 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     long countByStatus(ProductStatus status);
 
+    Page<Product> findByTitleContainingIgnoreCase(String title, Pageable pageable);
+
     @Modifying
     @Query("UPDATE Product p SET p.views = p.views + 1 WHERE p.id = :id")
     void incrementViews(@Param("id") Long id);
