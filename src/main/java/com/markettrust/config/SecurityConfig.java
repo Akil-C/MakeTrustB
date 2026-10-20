@@ -50,6 +50,11 @@ public class SecurityConfig {
     };
 
     private static final String[] PUBLIC_ENDPOINTS = {
+            "/",
+            "/health",
+            "/api/health",
+            "/error",
+            "/favicon.ico",
             "/api/auth/**",
             // Swagger / OpenAPI
             "/v3/api-docs/**",
@@ -59,6 +64,7 @@ public class SecurityConfig {
             "/webjars/**",
             // Actuator health (public)
             "/actuator/health",
+            "/actuator/info",
     };
 
     // -------------------------------------------------------------------------

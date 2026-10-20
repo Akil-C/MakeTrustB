@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: maketrust-backend
+    env: docker
+    dockerfilePath: Dockerfile
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: APP_MODE
+        value: production
+      - key: PORT
+        value: 10000
