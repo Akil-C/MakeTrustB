@@ -270,6 +270,7 @@ public class ProductService {
     // ─────────────────────────────────────────────────────────────────────────
 
     @Async
+    @Transactional
     public void recordProductView(Long productId, Long viewerId, String ipAddress) {
         try {
             LocalDateTime oneHourAgo = LocalDateTime.now().minusHours(1);
