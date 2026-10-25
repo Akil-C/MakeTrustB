@@ -11,3 +11,5 @@ services:
         value: production
       - key: PORT
         value: 10000
+      - key: CORS_ALLOWED_ORIGIN_PATTERNS
+        value: "https://*.vercel.app,https://*.onrender.com,http://localhost:*,http://127.0.0.1:*,*"

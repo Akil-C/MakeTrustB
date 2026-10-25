@@ -39,6 +39,9 @@ public class SecurityConfig {
     @Value("${app.cors.allowed-origins:http://localhost:3000,http://localhost:5173}")
     private List<String> allowedOrigins;
 
+    @Value("${app.cors.allowed-origin-patterns:https://*.vercel.app,https://*.onrender.com,http://localhost:*,http://127.0.0.1:*,*}")
+    private List<String> allowedOriginPatterns;
+
     // -------------------------------------------------------------------------
     // Public endpoints (no authentication required)
     // -------------------------------------------------------------------------
@@ -84,6 +87,8 @@ public class SecurityConfig {
 
             // Authorization rules
             .authorizeHttpRequests(auth -> auth
+                    // Allow preflight CORS OPTIONS requests for ALL paths
+                    .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                     // Public endpoints (any HTTP method)
                     .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                     // Public read-only product/category endpoints
@@ -153,11 +158,25 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(allowedOrigins);
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        
+        // Support allowed origin patterns (allows wildcard matching for *.vercel.app, *.onrender.com, etc.)
+        if (allowedOriginPatterns != null && !allowedOriginPatterns.isEmpty()) {
+            config.setAllowedOriginPatterns(allowedOriginPatterns);
+        } else {
+            config.setAllowedOriginPatterns(List.of(
+                    "https://*.vercel.app",
+                    "https://*.onrender.com",
+                    "http://localhost:*",
+                    "http://127.0.0.1:*",
+                    "*"
+            ));
+        }
+
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"));
         config.setAllowedHeaders(List.of(
                 "Authorization", "Content-Type", "Accept",
-                "X-Requested-With", "Cache-Control", "Origin"
+                "X-Requested-With", "Cache-Control", "Origin",
+                "Access-Control-Request-Method", "Access-Control-Request-Headers"
         ));
         config.setExposedHeaders(List.of(
                 "Authorization", "X-RateLimit-Limit", "X-RateLimit-Remaining"
